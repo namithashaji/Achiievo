@@ -118,7 +118,7 @@ function HomePage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <Navbar />
-      <main className="container mx-auto p-4">
+      <main className="container mx-auto p-4 min-h-screen">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="leaderboard" className='text-xl p-2'>Leaderboard</TabsTrigger>
