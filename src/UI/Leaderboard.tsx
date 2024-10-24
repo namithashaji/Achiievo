@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Medal, Award, Star, Crown } from "lucide-react";
+import { Trophy, Medal, Award, Star, Crown, Wifi, WifiOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useLeaderboard } from "@/context/LeaderboardContext";
@@ -67,23 +67,37 @@ const TopThreeCard: React.FC<TopThreeCardProps> = ({ rank, user, icon }) => (
 export default function Leaderboard() {
   const { leaderboard } = useLeaderboard();
   const [visibleEntries, setVisibleEntries] = useState(10);
+  const [isLive, setIsLive] = useState(false); // Initialize to false
 
   const loadMore = () => {
     setVisibleEntries((prevEntries) => Math.min(prevEntries + 5, leaderboard.length));
   };
 
+  useEffect(() => {
+    // Update the live status based on the leaderboard data
+    if (leaderboard.length > 0) {
+      setIsLive(true); // Data exists, set live
+    } else {
+      setIsLive(false); // No data, set not live
+    }
+  }, [leaderboard]); // Effect runs whenever the leaderboard data changes
+
   return (
     <Card className="w-full max-w-6xl mx-auto overflow-hidden bg-gradient-to-br from-purple-50 to-blue-50">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-4 flex justify-between items-center">
         <CardTitle className="text-3xl font-bold text-center mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600">
           Department Toppers
         </CardTitle>
-        <div className="flex flex-wrap justify-center gap-4 mb-6 px-4">
-          {leaderboard.length >= 3 && (
+        <div className="flex items-center space-x-2">
+          {isLive ? (
             <>
-              <TopThreeCard rank={2} user={leaderboard[1]} icon={rankIcons[1]} />
-              <TopThreeCard rank={1} user={leaderboard[0]} icon={rankIcons[0]} />
-              <TopThreeCard rank={3} user={leaderboard[2]} icon={rankIcons[2]} />
+              <Wifi className="h-6 w-6 text-green-500" />
+              <span className="text-sm text-green-500">Live</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-6 w-6 text-red-500" />
+              <span className="text-sm text-red-500">Not Live</span>
             </>
           )}
         </div>
@@ -93,7 +107,13 @@ export default function Leaderboard() {
         <div className="overflow-x-auto">
           <Table className="w-full">
             <TableHeader>
-              <TableRow><TableHead className="w-16">Rank</TableHead><TableHead>SSHR</TableHead><TableHead>Name</TableHead><TableHead className="hidden md:table-cell">Department</TableHead><TableHead className="text-right">Score</TableHead></TableRow>
+              <TableRow>
+                <TableHead className="w-16">Rank</TableHead>
+                <TableHead>SSHR</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="hidden md:table-cell">Department</TableHead>
+                <TableHead className="text-right">Score</TableHead>
+              </TableRow>
             </TableHeader>
             <TableBody className="px-1">
               <AnimatePresence>
@@ -121,7 +141,11 @@ export default function Leaderboard() {
                         : ""
                     }`}
                   >
-                    <TableCell className="font-medium py-4"><div className="flex items-center gap-2">{index < 5 ? rankIcons[index] : index + 1}</div></TableCell>
+                    <TableCell className="font-medium py-4">
+                      <div className="flex items-center gap-2">
+                        {index < 5 ? rankIcons[index] : index + 1}
+                      </div>
+                    </TableCell>
                     <TableCell className="py-4">{user.sshr}</TableCell>
                     <TableCell className="py-4">
                       <div className="flex items-center gap-3">
@@ -132,7 +156,9 @@ export default function Leaderboard() {
                         <span className={index < 5 ? "text-lg font-semibold" : ""}>{user.fullName}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell py-4">{user.departmentName}</TableCell>
+                    <TableCell className="hidden md:table-cell py-4">
+                      {user.departmentName}
+                    </TableCell>
                     <TableCell className={`text-right font-semibold py-4 px-2 ${index < 5 ? "text-lg" : ""}`}>
                       {user.points}
                     </TableCell>
