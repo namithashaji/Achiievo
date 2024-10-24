@@ -1,6 +1,5 @@
-'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { X, Plus, Edit, Trash2, Download } from 'lucide-react'
+import { X, Edit, Trash2, Download } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { addTask, addStudent, updatePoints, deleteTask, deleteStudent, updateTask, updateStudent, listenToStudents, listenToTasks, getStudents } from '../services/firestoreService'
 import { Timestamp } from 'firebase/firestore'
@@ -40,11 +39,11 @@ type Student = {
 };
 
 interface Task {
-  id: string
-  title: string
-  description: string
-  deadline: string
-  reward: number
+  id: string;
+  title: string;
+  description: string;
+  deadline: string;
+  reward: number;
   status: string;
 }
 
@@ -63,18 +62,44 @@ export default function EnhancedAdminDashboard() {
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [editStudent, setEditStudent] = useState<Student | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all')
+  const [filterType, setFilterType] = useState<'all' | 'students' | 'tasks'>('all')
 
   const { theme } = useTheme()
 
   useEffect(() => {
-    const unsubscribeStudents = listenToStudents(setStudents)
-    const unsubscribeTasks = listenToTasks(setTasks)
+    const unsubscribeStudents = listenToStudents((newStudents) => {
+      setStudents(newStudents as Student[])
+    })
+    const unsubscribeTasks = listenToTasks((newTasks) => {
+      setTasks(newTasks as Task[])
+    })
     return () => {
       unsubscribeStudents()
       unsubscribeTasks()
     }
   }, [])
+
+  const filteredData = useMemo(() => {
+    const lowercaseSearchTerm = searchTerm.toLowerCase()
+    let filteredStudents = students
+    let filteredTasks = tasks
+
+    if (searchTerm) {
+      filteredStudents = students.filter(student =>
+        student.fullName.toLowerCase().includes(lowercaseSearchTerm) ||
+        student.departmentName.toLowerCase().includes(lowercaseSearchTerm) ||
+        student.sshr.toString().includes(lowercaseSearchTerm)
+      )
+      filteredTasks = tasks.filter(task =>
+        task.title.toLowerCase().includes(lowercaseSearchTerm) ||
+        task.description.toLowerCase().includes(lowercaseSearchTerm)
+      )
+    }
+
+    if (filterType === 'students') return { students: filteredStudents, tasks: [] }
+    if (filterType === 'tasks') return { students: [], tasks: filteredTasks }
+    return { students: filteredStudents, tasks: filteredTasks }
+  }, [students, tasks, searchTerm, filterType])
 
   const closeForm = () => {
     setActiveForm(FormType.None)
@@ -83,9 +108,8 @@ export default function EnhancedAdminDashboard() {
   }
 
   const handleTabChange = (value: string) => {
-    if (activeForm === FormType.None) {
-      setActiveTab(value)
-    }
+    setActiveTab(value)
+    closeForm()
   }
 
   const handleAddTask = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -151,29 +175,25 @@ export default function EnhancedAdminDashboard() {
   }
 
   const handleAddPoints = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const pointsToAdd = parseInt(formData.get('points-to-add') as string, 10);
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const pointsToAdd = parseInt(formData.get('points-to-add') as string, 10)
   
     if (selectedStudentId && !isNaN(pointsToAdd) && pointsToAdd > 0) {
       try {
-        const students = await getStudents();
-        const student = students.find((stu) => stu.id === selectedStudentId);
+        const students = await getStudents()
+        const student = students.find((stu) => stu.id === selectedStudentId)
   
         if (student) {
-          const newPoints = student.points + pointsToAdd;
-          await updatePoints(selectedStudentId, newPoints);
-          closeForm();
-        } else {
-          console.error('Student not found');
+          const newPoints = student.points + pointsToAdd
+          await updatePoints(selectedStudentId, newPoints)
+          closeForm()
         }
       } catch (error) {
-        console.error('Error updating points:', error);
+        console.error('Error updating points:', error)
       }
-    } else {
-      console.error('Invalid student ID or points value');
     }
-  };
+  }
 
   const handleDeleteTask = async (id: string) => {
     try {
@@ -192,34 +212,37 @@ export default function EnhancedAdminDashboard() {
   }
 
   const exportToExcel = () => {
-    const workbook = XLSX.utils.book_new();
+    const workbook = XLSX.utils.book_new()
     
-    // Export students
     const studentsWS = XLSX.utils.json_to_sheet(students.map(s => ({
       ...s,
       createdAt: s.createdAt.toDate().toLocaleString(),
       updatedAt: s.updatedAt.toDate().toLocaleString()
-    })));
-    XLSX.utils.book_append_sheet(workbook, studentsWS, "Students");
+    })))
+    XLSX.utils.book_append_sheet(workbook, studentsWS, "Students")
 
-    // Export tasks
-    const tasksWS = XLSX.utils.json_to_sheet(tasks);
-    XLSX.utils.book_append_sheet(workbook, tasksWS, "Tasks");
+    const tasksWS = XLSX.utils.json_to_sheet(tasks)
+    XLSX.utils.book_append_sheet(workbook, tasksWS, "Tasks")
 
-    // Save the file
-    XLSX.writeFile(workbook, "admin_dashboard_data.xlsx");
+    XLSX.writeFile(workbook, "admin_dashboard_data.xlsx")
   }
 
-  // Prepare data for charts
-  const departmentData = students.reduce((acc, student) => {
-    acc[student.departmentName] = (acc[student.departmentName] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const departmentData = useMemo(() => {
+    return students.reduce((acc, student) => {
+      acc[student.departmentName] = (acc[student.departmentName] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+  }, [students])
 
-  const pointsData = students.map(student => ({
-    name: student.fullName,
-    points: student.points
-  })).sort((a, b) => b.points - a.points).slice(0, 10);
+  const pointsData = useMemo(() => {
+    return students
+      .map(student => ({
+        name: student.fullName,
+        points: student.points
+      }))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 10)
+  }, [students])
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
@@ -228,12 +251,12 @@ export default function EnhancedAdminDashboard() {
         <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-2">
-            <TabsTrigger value="overview" disabled={activeForm !== FormType.None}>Overview</TabsTrigger>
-            <TabsTrigger value="tasks" disabled={activeForm !== FormType.None}>Tasks</TabsTrigger>
-            <TabsTrigger value="students" disabled={activeForm !== FormType.None}>Students</TabsTrigger>
-            <TabsTrigger value="points" disabled={activeForm !== FormType.None}>Add Points</TabsTrigger>
-            <TabsTrigger value="analytics" disabled={activeForm !== FormType.None}>Analytics</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 gap-2 mb-8">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="students">Students</TabsTrigger>
+            <TabsTrigger value="points">Add Points</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           <AnimatePresence mode="wait">
@@ -244,290 +267,242 @@ export default function EnhancedAdminDashboard() {
               animate="visible"
               exit="exit"
             >
-              <TabsContent value="overview">
+              <TabsContent value="overview" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>Dashboard Overview</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">Quick Stats</h3>
-                        <p>Total Students: {students.length}</p>
-                        <p>Total Tasks: {tasks.length}</p>
-                        <p>Completed Tasks: {tasks.filter(task => task.status === 'completed').length}</p>
-                        <p>Pending Tasks: {tasks.filter(task => task.status === 'pending').length}</p>
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">Search and Filter</h3>
-                        <Input
-                          type="text"
-                          placeholder="Search students or tasks..."
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="mb-2"
-                        />
-                        <Select onValueChange={(value) => setFilterType(value)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Filter by..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="students">Students</SelectItem>
-                            <SelectItem value="tasks">Tasks</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <h3 className="text-lg font-semibold mb-2">Leaderboard Preview</h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Rank</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Points</TableHead>
-                            <TableHead>Department</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {students
-                            .sort((a, b) => b.points - a.points)
-                            .slice(0, 5)
-                            .map((student, index) => (
-                              <TableRow key={student.id}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{student.fullName}</TableCell>
-                                <TableCell>{student.points}</TableCell>
-                                <TableCell>{student.departmentName}</TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="mt-4">
-                      <h3 className="text-lg font-semibold mb-2">Recent Tasks</h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Deadline</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {tasks
-                            .sort((a, b) => new Date(b.deadline).getTime() - new Date(a.deadline).getTime())
-                            .slice(0, 5)
-                            .map((task) => (
-                              <TableRow key={task.id}>
-                                <TableCell>{task.title}</TableCell>
-                                <TableCell>{task.status}</TableCell>
-                                <TableCell>{new Date(task.deadline).toLocaleDateString()}</TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{students.length}</div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{tasks.length}</div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{tasks.filter(task => task.status === 'pending').length}</div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Completed Tasks</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{tasks.filter(task => task.status === 'completed').length}</div>
+                        </CardContent>
+                      </Card>
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
-
-              <TabsContent value="tasks">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Manage Tasks</CardTitle>
+                    <CardTitle>Leaderboard Preview</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Button onClick={() => setActiveForm(FormType.Task)}>
-                      <Plus size={16} className="mr-2" />
-                      Add Task
-                    </Button>
-                    <div className="overflow-x-auto mt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead className="hidden md:table-cell">Description</TableHead>
-                            <TableHead>Deadline</TableHead>
-                            <TableHead>Reward</TableHead>
-                            <TableHead>Action</TableHead>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Rank</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Points</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pointsData.slice(0, 5).map((student, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{index + 1}</TableCell>
+                            <TableCell>{student.name}</TableCell>
+                            <TableCell>{student.points}</TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {tasks.map((task) => (
-                            <TableRow key={task.id}>
-                              <TableCell>{task.title}</TableCell>
-                              <TableCell className="hidden md:table-cell">{task.description}</TableCell>
-                              <TableCell>{task.deadline}</TableCell>
-                              <TableCell>{task.reward} points</TableCell>
-                              <TableCell>
-                                <div className="flex space-x-2">
-                                  <Button size="sm" variant="outline" onClick={() => setEditTask(task)}>
-                                    <Edit size={16} />
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={() => handleDeleteTask(task.id)}>
-                                    <Trash2 size={16} />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="students">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Manage Students</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between mb-4">
-                      <Button onClick={() => setActiveForm(FormType.Student)}>
-                        <Plus size={16} className="mr-2" />
-                        Add Student
-                      </Button>
-                      <Button onClick={exportToExcel}>
-                        <Download size={16} className="mr-2" />
-                        Export to Excel
-                      </Button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Full Name</TableHead>
-                            <TableHead>Department</TableHead>
-                            <TableHead>SSHR</TableHead>
-                            <TableHead>Points</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {students.map((student) => (
-                            <TableRow key={student.id}>
-                              <TableCell>{student.fullName}</TableCell>
-                              <TableCell>{student.departmentName}</TableCell>
-                              <TableCell>{student.sshr}</TableCell>
-                              <TableCell>{student.points}</TableCell>
-                              <TableCell>
-                                <div className="flex space-x-2">
-                                  <Button size="sm" variant="outline" onClick={() => setEditStudent(student)}>
-                                    <Edit size={16} />
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={() => handleDeleteStudent(student.id)}>
-                                    <Trash2 size={16} />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="points">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Add Points to Students</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleAddPoints}>
-                      <Label htmlFor="student-id">Select Student</Label>
-                      <select
-                        id="student-id"
-                        className="block w-full mt-2 p-2 border rounded-md"
-                        onChange={(e) => setSelectedStudentId(e.target.value)}
-                        required
-                      >
-                        <option value="">Select a student</option>
-                        {students.map((student) => (
-                          <option key={student.id} value={student.id}>
-                            {student.fullName} (SSHR: {student.sshr})
-                          </option>
                         ))}
-                      </select>
-                      <Label htmlFor="points-to-add" className="mt-4">Points to Add</Label>
-                      <Input
-                        type="number"
-                        id="points-to-add"
-                        name="points-to-add"
-                        className="mt-2"
-                        required
-                      />
-                      <Button type="submit" className="mt-4">Add Points</Button>
-                    </form>
+                      </TableBody>
+                    </Table>
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="analytics">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Analytics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">Students by Department</h3>
-                        <Bar
-                          data={{
-                            labels: Object.keys(departmentData),
-                            datasets: [{
+              <TabsContent value="tasks" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold">Tasks</h2>
+                  <Button onClick={() => setActiveForm(FormType.Task)}>Add New Task</Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Deadline</TableHead>
+                      <TableHead>Reward</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.tasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell>{task.title}</TableCell>
+                        <TableCell>{task.description}</TableCell>
+                        <TableCell>{task.deadline}</TableCell>
+                        <TableCell>{task.reward}</TableCell>
+                        <TableCell>{task.status}</TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" className="mr-2" onClick={() => { setEditTask(task); setActiveForm(FormType.Task); }}>
+                            <Edit size={16} />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteTask(task.id)}>
+                            <Trash2 size={16} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+
+              <TabsContent value="students" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold">Students</h2>
+                  <Button onClick={() => setActiveForm(FormType.Student)}>Add New Student</Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>SSHR</TableHead>
+                      <TableHead>Points</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.students.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell>{student.fullName}</TableCell>
+                        <TableCell>{student.departmentName}</TableCell>
+                        <TableCell>{student.sshr}</TableCell>
+                        <TableCell>{student.points}</TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" className="mr-2" onClick={() => { setEditStudent(student); setActiveForm(FormType.Student); }}>
+                            <Edit size={16} />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteStudent(student.id)}>
+                            <Trash2 size={16} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TabsContent>
+
+              <TabsContent value="points" className="space-y-4">
+                <h2 className="text-2xl font-bold">Add Points</h2>
+                <form onSubmit={handleAddPoints} className="space-y-4">
+                  <div>
+                    <Label htmlFor="student-select">Select Student</Label>
+                    <Select onValueChange={(value) => setSelectedStudentId(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a student" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {students.map((student) => (
+                          <SelectItem key={student.id} value={student.id}>{student.fullName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="points-to-add">Points to Add</Label>
+                    <Input type="number" id="points-to-add" name="points-to-add" required />
+                  </div>
+                  <Button type="submit">Add Points</Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="analytics" className="space-y-4">
+                <h2 className="text-2xl font-bold">Analytics</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Students by Department</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Bar
+                        data={{
+                          labels: Object.keys(departmentData),
+                          datasets: [
+                            {
                               label: 'Number of Students',
                               data: Object.values(departmentData),
                               backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                            }]
-                          }}
-                          options={{
-                            scales: {
-                              y: {
-                                beginAtZero: true,
-                                ticks: {
-                                  stepSize: 1
-                                }
-                              }
-                            }
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">Top 10 Students by Points</h3>
-                        <Line
-                          data={{
-                            labels: pointsData.map(d => d.name),
-                            datasets: [{
+                            },
+                          ],
+                        }}
+                        options={{
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              ticks: {
+                                precision: 0,
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Top 10 Students by Points</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Line
+                        data={{
+                          labels: pointsData.map(d => d.name),
+                          datasets: [
+                            {
                               label: 'Points',
                               data: pointsData.map(d => d.points),
-                              borderColor: 'rgba(255, 99, 132, 1)',
-                              backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                            }]
-                          }}
-                          options={{
-                            scales: {
-                              y: {
-                                beginAtZero: true
-                              }
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                              borderColor: 'rgba(75, 192, 192, 1)',
+                              tension: 0.1,
+                            },
+                          ],
+                        }}
+                        options={{
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                            },
+                          },
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+                <Button onClick={exportToExcel}>
+                  <Download className="mr-2 h-4 w-4" /> Export to Excel
+                </Button>
               </TabsContent>
             </motion.div>
           </AnimatePresence>
         </Tabs>
 
-        {/* Task Form Modal */}
         {activeForm === FormType.Task && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white p-6 rounded-md w-full max-w-lg">
@@ -577,7 +552,6 @@ export default function EnhancedAdminDashboard() {
           </div>
         )}
 
-        {/* Student Form Modal */}
         {activeForm === FormType.Student && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white p-6 rounded-md w-full max-w-lg">

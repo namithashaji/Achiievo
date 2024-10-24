@@ -22,47 +22,47 @@ const rankIcons = [
   <Crown key="crown" className="h-6 w-6 text-purple-500" />,
 ];
 
-interface TopThreeCardProps {
-  rank: number;
-  user: {
-    avatarUrl: string;
-    fullName: string;
-    departmentName: string;
-    sshr: number;
-    points: number;
-  };
-  icon: React.ReactNode;
-}
+// interface TopThreeCardProps {
+//   rank: number;
+//   user: {
+//     avatarUrl: string;
+//     fullName: string;
+//     departmentName: string;
+//     sshr: number;
+//     points: number;
+//   };
+//   icon: React.ReactNode;
+// }
 
-const TopThreeCard: React.FC<TopThreeCardProps> = ({ rank, user, icon }) => (
-  <motion.div
-    whileHover={{ scale: 1.05 }}
-    className={`flex flex-col items-center w-full sm:w-1/3 p-3 rounded-lg shadow-lg ${
-      rank === 1
-        ? "bg-gradient-to-b from-yellow-100 to-yellow-200"
-        : rank === 2
-        ? "bg-gradient-to-b from-gray-100 to-gray-200"
-        : "bg-gradient-to-b from-amber-100 to-amber-400"
-    }`}
-    style={{ minWidth: "200px", maxWidth: "250px" }}
-  >
-    <div className="text-center mb-1">
-      <span className="text-base font-bold">{rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} Place</span>
-    </div>
-    <div className="flex flex-col items-center mb-2">
-      {icon}
-      <Avatar className="w-20 h-20 border-2 border-white mt-1">
-        <AvatarImage src={user.avatarUrl} alt={user.fullName} />
-        <AvatarFallback>{user.fullName.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
-      </Avatar>
-      <span className="text-lg font-semibold mt-1">{user.fullName}</span>
-      <span className="text-xs text-gray-600 text-center">{user.departmentName}</span>
-    </div>
-    <CardContent className="text-center p-0">
-      <span className="text-lg font-bold">{user.points}</span>
-    </CardContent>
-  </motion.div>
-);
+// const TopThreeCard: React.FC<TopThreeCardProps> = ({ rank, user, icon }) => (
+//   <motion.div
+//     whileHover={{ scale: 1.05 }}
+//     className={`flex flex-col items-center w-full sm:w-1/3 p-3 rounded-lg shadow-lg ${
+//       rank === 1
+//         ? "bg-gradient-to-b from-yellow-100 to-yellow-200"
+//         : rank === 2
+//         ? "bg-gradient-to-b from-gray-100 to-gray-200"
+//         : "bg-gradient-to-b from-amber-100 to-amber-400"
+//     }`}
+//     style={{ minWidth: "200px", maxWidth: "250px" }}
+//   >
+//     <div className="text-center mb-1">
+//       <span className="text-base font-bold">{rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} Place</span>
+//     </div>
+//     <div className="flex flex-col items-center mb-2">
+//       {icon}
+//       <Avatar className="w-20 h-20 border-2 border-white mt-1">
+//         <AvatarImage src={user.avatarUrl} alt={user.fullName} />
+//         <AvatarFallback>{user.fullName.split(" ").map((n) => n[0]).join("")}</AvatarFallback>
+//       </Avatar>
+//       <span className="text-lg font-semibold mt-1">{user.fullName}</span>
+//       <span className="text-xs text-gray-600 text-center">{user.departmentName}</span>
+//     </div>
+//     <CardContent className="text-center p-0">
+//       <span className="text-lg font-bold">{user.points}</span>
+//     </CardContent>
+//   </motion.div>
+// );
 
 export default function Leaderboard() {
   const { leaderboard } = useLeaderboard();
