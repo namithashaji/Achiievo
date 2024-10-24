@@ -1,50 +1,25 @@
-# React + TypeScript + Vite
+# Achiievo 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
 
-Currently, two official plugins are available:
+Achiievo is a dynamic leaderboard platform designed to track task completion and reward users based on their achievements. With its gamified approach, Achiievo fosters healthy competition and motivation by allowing participants to accumulate points, awarded by an admin, to climb the leaderboard. This platform is ideal for use in teams, classrooms, or any challenge-based environment where engagement and performance are critical.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Participants can view their ranks, and admins have control over assigning tasks and points, thus maintaining the leaderboard’s integrity and fairness.
 
-## Expanding the ESLint configuration
+## Core Features
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- **Leaderboard Management:** Displays participants ranked based on their points.
+- **Task Assignment and Completion:** Admins can assign tasks to users and allocate points upon completion.
+- **Dynamic User Profiles:** Users have personalized profiles with attributes like full name, department name, points, and an SSHR number.
+- **Real-time Updates:** Leaderboards and user profiles update in real-time, ensuring timely feedback and ranking shifts.
+- **Caching Mechanism:** Optimizes performance with a caching strategy, minimizing frequent fetches from the database.
 
-- Configure the top-level `parserOptions` property like this:
+## Architecture
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+### Technologies and Tools
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+- **React + TypeScript + Vite:** The front-end application uses React with TypeScript for type safety and fast development. Vite is the build tool, offering fast HMR (Hot Module Replacement).
+- **Firebase Firestore:** Used as the cloud database, Firebase provides real-time syncing of data such as user scores and tasks.
+- **Framer Motion:** Utilized for adding animations, enhancing user interactions and overall UI experience.
+- **Firebase Authentication:** Manages secure user access and permissions.
+- **Context API:** Used to manage global state efficiently for leaderboard and user details.
